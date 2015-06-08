@@ -10,6 +10,7 @@ struct real_array {
 };
 
 size_t array_max_memory_size = 0;
+size_t array_min_memory_size = 0;
 size_t array_max_size = 0;
 
 exception_type_t exception_type_integer_overflow;
@@ -27,7 +28,8 @@ static inline struct real_array *array_real_array(const void *array) {
 };
 
 static size_t real_array_calculate_size(struct real_array *real_array, size_t new_size) {
-	return sizeof(struct real_array *) + (real_array->item_size * (new_size + (real_array->flags & ARRAY_NULL_TERMINATED ? 1 : 0)));
+	size_t size = sizeof(struct real_array *) + (real_array->item_size * (new_size + (real_array->flags & ARRAY_NULL_TERMINATED ? 1 : 0)));
+	return (size > array_min_memory_size) ? size : array_min_memory_size;
 };
 
 static size_t powof2(size_t size) {
@@ -38,19 +40,19 @@ static size_t powof2(size_t size) {
 	return x;
 }
 
-static struct real_array *real_array_new(size_t item_size, enum array_flags flags) {
+static struct real_array *real_array_new(size_t item_size, size_t size, enum array_flags flags) {
 	struct real_array *real_array = NULL;
 	try {
 		real_array = c_malloc(sizeof(struct real_array));
 		real_array->i = NULL;
 		real_array->flags = flags;
-		real_array->n = 0;
+		real_array->n = size;
 		real_array->item_size = item_size;
-		real_array->size_in_bytes = powof2(real_array_calculate_size(real_array, 0));
+		real_array->size_in_bytes = powof2(real_array_calculate_size(real_array, size));
 		real_array->i = c_malloc(real_array->size_in_bytes);
 		((struct real_array **)real_array->i)[0] = real_array;
 		if (real_array->flags & ARRAY_NULL_TERMINATED) {
-			memset(&((char*)real_array->i)[sizeof(struct real_array *)], 0, real_array->item_size);
+			memset(&((char*)real_array->i)[sizeof(struct real_array *) + (item_size * size)], 0, real_array->item_size);
 		};
 	};
 	catch {
@@ -85,7 +87,8 @@ static void real_array_grow(struct real_array *real_array, size_t grow) {
 static void real_array_resize(struct real_array *real_array, size_t resize) {
 	if (array_max_size && resize > array_max_size) {
 		char *verbose = malloc(1024);
-		snprintf(verbose, 1024, "Requested array size: %zi", resize);
+		if (verbose)
+			snprintf(verbose, 1024, "Requested array size: %zi", resize);
 		throw(exception_type_memory, ENOMEM, "Array size limit exceeded", NULL);
 	}
 	try {
@@ -123,6 +126,7 @@ static void real_array_add(struct real_array *real_array, const void *add, size_
 
 static void real_array_free(struct real_array *real_array) {
 	if (!real_array) return;
+	//fprintf(stderr, "real_array->i=%lli\n", (long long int)real_array->i);
 	free(real_array->i);
 	free(real_array);
 };
@@ -131,8 +135,8 @@ static void real_array_free_scope(void *ptr) {
 	real_array_free((struct real_array *)ptr);
 };
 
-void *array_new_real(size_t item_size, enum array_flags flags) {
-	struct real_array *real_array = real_array_new(item_size, flags);
+void *array_new_real(size_t item_size, size_t size, enum array_flags flags) {
+	struct real_array *real_array = real_array_new(item_size, size, flags);
 	return real_array_array(real_array);
 };
 

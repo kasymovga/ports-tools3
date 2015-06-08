@@ -67,7 +67,7 @@ struct pkg_db *pkg_db_new(const char *root, const char *db_path) {
 	db->lock_path = string_new_fmt("%s/.LOCK", db->path);
 	db->lock_counter = 0;
 	db->lock_pid = 0;
-	db->pkgs = array_new(struct pkg_info, ARRAY_NULL_TERMINATED);
+	db->pkgs = array_new(struct pkg_info, 0, ARRAY_NULL_TERMINATED);
 	return db;
 };
 
@@ -171,7 +171,7 @@ void pkg_db_load_pkgs(struct pkg_db *db, int load_files) {
 		while ((dirent = readdir(pkgs_dir))) {
 			if (dirent->d_name[0] == '.') continue;
 			scope {
-				string_fmt(pkg_path,  "%s/%s", db->path, dirent->d_name);
+				string_fmt(pkg_path, "%s/%s", db->path, dirent->d_name);
 				versions_dir = kga_opendir(pkg_path);
 				struct dirent *version_dirent;
 				while ((version_dirent = readdir(versions_dir))) {
@@ -220,7 +220,7 @@ struct pkg_fs_transaction *pkg_db_write_pkg_info(struct pkg_db *db, struct pkg_i
 struct pkg_fs_transaction *pkg_db_write_pkg(struct pkg_db *db, struct pkg *pkg, struct pkg_fs_transaction *transactions) {
 	important_check(pkg->files);
 	struct pkg_info pkg_info;
-	pkg_info.files = array_new(char *, 0);
+	pkg_info.files = array_new(char *, 0, 0);
 	pkg_info.name = pkg->name;
 	pkg_info.version = pkg->version;
 	for (size_t i = 0, n = array_length(pkg->files); i < n; i++) {
@@ -231,7 +231,7 @@ struct pkg_fs_transaction *pkg_db_write_pkg(struct pkg_db *db, struct pkg *pkg, 
 };
 
 struct pkg_db_conflict *pkg_db_find_conflicts(struct pkg_db *db, struct pkg *pkg) {
-	struct pkg_db_conflict *conflicts = array_new(struct pkg_db_conflict, ARRAY_NULL_TERMINATED);
+	struct pkg_db_conflict *conflicts = array_new(struct pkg_db_conflict, 0, ARRAY_NULL_TERMINATED);
 	struct pkg_db_conflict conflict;
 	important_check(db->pkgs);
 	for (size_t i = 0, n = array_length(db->pkgs); i < n; i++) {
@@ -245,7 +245,7 @@ struct pkg_db_conflict *pkg_db_find_conflicts(struct pkg_db *db, struct pkg *pkg
 						string_length(pkg->files[j].path)) continue;
 				if (!strcmp(db->pkgs[i].files[k], pkg->files[j].path)) {
 					if (!conflict.files) {
-						conflict.files = array_new(char *, ARRAY_NULL_TERMINATED);
+						conflict.files = array_new(char *, 0, ARRAY_NULL_TERMINATED);
 					};
 					array_push(conflict.files, db->pkgs[i].files[k]);
 				};
@@ -297,7 +297,7 @@ void pkg_regular_file_install(const char *from, const char *to, mode_t mode) {
 		while ((readed = kga_fread(buffer, 1, 1024, from_file))) {
 			kga_fwrite(buffer, 1, readed, to_file);
 		};
-		kga_fflush_and_fsync(to_file);
+		//kga_fflush_and_fsync(to_file);
 	};
 	if (chmod(to, mode)) throw_errno_verbose(to);
 };
@@ -305,6 +305,7 @@ void pkg_regular_file_install(const char *from, const char *to, mode_t mode) {
 void pkg_symlink_install(const char *from, const char *to) {
 	scope {
 		char *from_target = kga_readlink(from);
+		remove(to);
 		kga_symlink(from_target, to);
 	};
 };
@@ -351,7 +352,7 @@ struct pkg *pkg_load(struct pkg *pkg, const char *pkg_path, const char *sub_path
 		need_sort = 1;
 		pkg = new(struct pkg);
 		pkg->path = pkg_path;
-		pkg->files = array_new(struct pkg_file, ARRAY_NULL_TERMINATED);
+		pkg->files = array_new(struct pkg_file, 0, ARRAY_NULL_TERMINATED);
 		scope {
 			char *name_path = string_new_fmt("%s/.name", pkg_path);
 			char *version_path = string_new_fmt("%s/.version", pkg_path);
@@ -406,7 +407,7 @@ struct pkg *pkg_load(struct pkg *pkg, const char *pkg_path, const char *sub_path
 
 void pkg_install(const char *pkg_path, const char *root, const char *db_path, int flags, FILE *warning_stream) {
 	scope {
-		struct pkg_fs_transaction *pkg_install_transactions = array_new(struct pkg_fs_transaction, ARRAY_NULL_TERMINATED);
+		struct pkg_fs_transaction *pkg_install_transactions = array_new(struct pkg_fs_transaction, 0, ARRAY_NULL_TERMINATED);
 		struct pkg_db *db = pkg_db_new(root, db_path);
 		struct pkg *pkg = pkg_load(NULL, pkg_path, NULL);
 		pkg_db_lock(db);
@@ -452,7 +453,7 @@ void pkg_install(const char *pkg_path, const char *root, const char *db_path, in
 					throw(exception_type_pkg_files_conflict, 1, "Conflict with other packages", conflict_description);
 				};
 			};
-			struct pkg_fs_transaction *conflict_delete_transactions = array_new(struct pkg_fs_transaction, ARRAY_NULL_TERMINATED);
+			struct pkg_fs_transaction *conflict_delete_transactions = array_new(struct pkg_fs_transaction, 0, ARRAY_NULL_TERMINATED);
 			conflict_delete_transactions = pkg_db_remove_conflicts(db, conflicts, conflict_delete_transactions);
 			try {
 				transaction_fs_transactions_commit(conflict_delete_transactions, warning_stream);
@@ -494,10 +495,6 @@ void pkg_install(const char *pkg_path, const char *root, const char *db_path, in
 		};
 		catch {
 		};
-		//struct pkg_info info;
-		//info.name = pkg->name;
-		//info.version = pkg->version;
-		//info.files = array_new(char *, ARRAY_NULL_TERMINATED);
 		if (flags & PKG_UPGRADE) {
 			array_foreach(db->pkgs, struct pkg_info *, each_pkg_info) {
 				if (!strcmp(each_pkg_info->name, pkg->name) && strcmp(each_pkg_info->version, pkg->version)) {
@@ -557,7 +554,7 @@ void pkg_drop(const char *root, const char *db_path, const char *name, const cha
 };
 
 struct pkg_list_item *pkg_db_list(const char *pkg_root, const char *db_path) {
-	struct pkg_list_item *list = array_new(struct pkg_list_item, ARRAY_NULL_TERMINATED);
+	struct pkg_list_item *list = array_new(struct pkg_list_item, 0, ARRAY_NULL_TERMINATED);
 	struct pkg_db *db = pkg_db_new(pkg_root, db_path);
 	pkg_db_load_pkgs(db, 0);
 	struct pkg_list_item list_item;

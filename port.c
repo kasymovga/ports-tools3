@@ -151,7 +151,7 @@ void port_db_load_port(port_db_t *db, const char *port_path, int flags) {
 			//too early calculate BUILD, make that later
 			port.build = NULL;
 			port.flags = flags;
-			port.all_depends = array_new(struct port_depend *, 0);
+			port.all_depends = array_new(struct port_depend *, 0, 0);
 			array_push(db->ports, port);
 			for (int i = 0, n = array_length(port.depends); i < n; i++) {
 				port_db_load_port(db, port.depends[i], flags);
@@ -230,7 +230,7 @@ void port_db_prepare(port_db_t *db) {
 		db->ignored_depends = NULL;
 		scope_use(db->scope_pool) {
 			db->ignored_depends = string_split(ignored_depends, " ", STRING_SPLIT_WITHOUT_EMPTY);
-			db->ports = array_new(port_t, ARRAY_NULL_TERMINATED);
+			db->ports = array_new(port_t, 0, ARRAY_NULL_TERMINATED);
 			if (db->targets) {
 				for (size_t i = 0, n = array_length(db->targets); i < n; i++) {
 					port_db_load_port(db, db->targets[i], 0);

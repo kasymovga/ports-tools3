@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 struct try_item {
 	jmp_buf jmp;
@@ -21,8 +22,6 @@ struct try_stack {
 	struct try_item *i;
 	size_t n, s, top;
 };
-
-#define JMP_DELTA 16
 
 #define EXCEPTION_INIT_FAIL { .code = ENOMEM, .message = "Init fail", .verbose = NULL, .success = 0 , .file = "unknown", .func = "unknown", .type = &exception_type_init_fail}
 #define EMPTY_TRY_STACK { .i = NULL, .n = 0, .s = 0, .top = 0 }
@@ -149,8 +148,8 @@ int exception_grow() {
 	if (!try_stack) {
 		goto finish;
 	};
-	if (try_stack->s >= try_stack->n) {
-		size_t new_s = try_stack->s + JMP_DELTA;
+	if (try_stack->s <= try_stack->n) {
+		size_t new_s = (try_stack->s ? try_stack->s * 2 : 16);
 		void *new_i = realloc(try_stack->i, new_s * sizeof(struct try_item));
 		if(!new_i) {
 			throw(exception_type_memory, errno, strerror(errno), NULL);
@@ -167,14 +166,15 @@ finish:
 void exception_print(FILE *out) {
 	const exception_t *exc = exception();
 	struct try_stack *try_stack = get_thread_try_stack();
-	fprintf(out, "Exception: %s:%s:%i: #%i: `%s': `%s'\n",
+	fprintf(out, "[%li] Exception: %s:%s:%i: #%i: `%s': `%s'\n",
+			(long int)getpid(),
 			exc->file,
 			exc->func,
 			exc->line,
 			exc->code,
 			exc->message ? exc->message : "undefined",
 			exc->verbose ? exc->verbose : "undefined");
-	fprintf(out, "Try stack (%zi, %zi):\n", try_stack->top, try_stack->n);
+	fprintf(out, "[%li] Try stack (%zi, %zi):\n", (long int)getpid(), try_stack->top, try_stack->n);
 	for(size_t i = 0; i < try_stack->top; i++) {
 		fprintf(out, "\t%s: %s: %i\n", try_stack->i[i].file, try_stack->i[i].func, try_stack->i[i].line);
 	};

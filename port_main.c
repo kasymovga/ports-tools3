@@ -23,8 +23,9 @@ int main(int argc, char **argv) {
 	root = "";
 	port_db_path = PORT_DB_DEFAULT_PATH;
 	pkg_db_path = PKG_DB_DEFAULT_PATH;
-	array_max_memory_size = 1024 * 1024;
-	array_max_size = 128 * 1024;
+	//array_max_memory_size = 16 *1024 * 1024;
+	//array_min_memory_size = 256;
+	//array_max_size = 128 * 1024;
 	int ret = EXIT_SUCCESS;
 	int opt;
 	kga_init();

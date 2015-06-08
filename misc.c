@@ -9,7 +9,7 @@
 
 char **file_lines(const char *path) {
 	important_check(path);
-	char **out = array_new(char *, 0);
+	char **out = array_new(char *, 0, 0);
 	scope {
 		FILE *file = kga_fopen(path, "r");
 		char *line = string_new();

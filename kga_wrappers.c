@@ -175,7 +175,7 @@ void kga_fflush_and_fsync(FILE *file) {
 };
 
 char *kga_readlink(const char *path) {
-	char *link_target = array_new(char, ARRAY_NULL_TERMINATED);
+	char *link_target = array_new(char, 0, ARRAY_NULL_TERMINATED);
 	array_resize(link_target, 64);
 	size_t buffer_size;
 	for (ssize_t readlink_result; (readlink_result = readlink(path, link_target, (buffer_size = array_length(link_target)))); ) {
