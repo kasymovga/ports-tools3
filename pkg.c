@@ -430,7 +430,7 @@ void pkg_install(const char *pkg_path, const char *root, const char *db_path, in
 				};
 			};
 		};
-		fprintf(warning_stream, "Searching conflicts\n");
+		if (warning_stream) fprintf(warning_stream, "Searching conflicts\n");
 		struct pkg_db_conflict *conflicts = pkg_db_find_conflicts(db, pkg);
 		important_check(conflicts);
 		size_t conflicts_len = array_length(conflicts);
@@ -456,7 +456,7 @@ void pkg_install(const char *pkg_path, const char *root, const char *db_path, in
 			};
 			struct pkg_fs_transaction *conflict_delete_transactions = array_new(struct pkg_fs_transaction, 0, ARRAY_NULL_TERMINATED);
 			if (array_length(conflict_delete_transactions) > 0) 
-				fprintf(warning_stream, "Cleaning conflicts\n");
+				if (warning_stream) fprintf(warning_stream, "Cleaning conflicts\n");
 			conflict_delete_transactions = pkg_db_remove_conflicts(db, conflicts, conflict_delete_transactions);
 			try {
 				transaction_fs_transactions_commit(conflict_delete_transactions, warning_stream);
@@ -466,7 +466,7 @@ void pkg_install(const char *pkg_path, const char *root, const char *db_path, in
 				throw_proxy();
 			};
 		};
-		fprintf(warning_stream, "Preparing transaction\n");
+		if (warning_stream) fprintf(warning_stream, "Preparing transaction\n");
 		pkg_install_transactions = pkg_install_files(db, pkg, pkg_install_transactions);
 		pkg_install_transactions = pkg_db_write_pkg(db, pkg, pkg_install_transactions);
 		try {
