@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 			port_db_prepare(db);
 			if (real_argc - 1 > 0) {
 				char *need[real_argc];
-				memcpy(need, &(real_argv[1]), real_argc - 1);
+				memcpy(need, &(real_argv[1]), (real_argc - 1) * sizeof(char *));
 				need[real_argc - 1] = NULL;
 				port_db_upgrade(db, need);
 			} else {
