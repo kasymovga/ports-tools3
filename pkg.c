@@ -485,6 +485,7 @@ void pkg_install(const char *pkg_path, const char *root, const char *db_path, in
 			int status;
 			pid_t script_pid = kga_fork();
 			if (!script_pid) {
+				kga_chdir(pkg_path);
 				if (unsetenv("ROOT")) throw_errno();
 				const char *script_copy = strdup(*script);
 				if (!script_copy) throw_errno();
