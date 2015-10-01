@@ -11,18 +11,17 @@
 #include "kga_wrappers.h"
 
 struct shell {
-	pid_t pid;
+	pid_t pid, parent_pid;
 	FILE *in, *out;
 	int fd_in;
 	int fd_out;
-	scope_pool_t *scope_pool;
 };
 
 exception_type_t shell_exception_process_died;
 
 static void shell_free(void *ptr) {
 	shell_t *shell = ptr;
-	if (shell->pid > 0) {
+	if (shell->pid > 0 && shell->parent_pid > 0 && shell->parent_pid == getpid()) {
 		kill(shell->pid, SIGINT);
 		int status;
 		waitpid(shell->pid, &status, 0);
@@ -32,14 +31,13 @@ static void shell_free(void *ptr) {
 
 shell_t *shell_new() {
 	shell_t *shell = kga_malloc(sizeof(struct shell));
+	shell->parent_pid = -1;
 	shell->pid = -1;
 	shell->fd_in = -1;
 	shell->fd_out = -1;
 	shell->in = NULL;
 	shell->out = NULL;
-	shell->scope_pool = NULL;
 	scope_add(shell, shell_free);
-	shell->scope_pool = scope_pool_new(0);
 	scope {
 		int *pipe_in = kga_pipe();
 		int *pipe_out = kga_pipe();
@@ -51,7 +49,8 @@ shell_t *shell_new() {
 			execl("/bin/sh", "sh", NULL);
 			exit(EXIT_FAILURE);
 		};
-		scope_use(shell->scope_pool) {
+		scope_use_previous {
+			shell->parent_pid = getpid();
 			shell->pid = shell_pid;
 			shell->fd_in = pipe_in[1];
 			shell->in = kga_fdopen(shell->fd_in, "w");
