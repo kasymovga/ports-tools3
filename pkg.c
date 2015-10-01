@@ -18,6 +18,7 @@
 #define PKG_FILE_LNK 2
 
 int (*pkg_confirm)(const char *fmt, ...) = NULL;
+int string_compare(const void *, const void *);
 
 exception_type_t exception_type_pkg_files_conflict = {};
 exception_type_t exception_type_pkg_db_already_locked = {};
@@ -182,6 +183,7 @@ void pkg_db_load_pkgs(struct pkg_db *db, int load_files) {
 						pkg_info.version = string_new_set(version_dirent->d_name);
 						if (load_files) {
 							pkg_info.files = file_lines(version_path);
+							array_sort(pkg_info.files, string_compare);
 						} else {
 							pkg_info.files = NULL;
 						};
@@ -234,22 +236,27 @@ struct pkg_db_conflict *pkg_db_find_conflicts(struct pkg_db *db, struct pkg *pkg
 	struct pkg_db_conflict *conflicts = array_new(struct pkg_db_conflict, 0, ARRAY_NULL_TERMINATED);
 	struct pkg_db_conflict conflict;
 	important_check(db->pkgs);
+	int cmp;
 	for (size_t i = 0, n = array_length(db->pkgs); i < n; i++) {
 		conflict.files = NULL;
 		important_check(pkg->files);
-		for (size_t j = 0, m = array_length(pkg->files); j < m; j++) {
+		important_check(db->pkgs[i].files);
+		for (size_t j = 0, k = 0, m = array_length(pkg->files), l = array_length(db->pkgs[i].files); j < m && k < l; j++) {
 			if (pkg->files[j].flags & PKG_FILE_DIR) continue;
-			important_check(db->pkgs[i].files);
-			for (size_t k = 0, l = array_length(db->pkgs[i].files); k < l; k++) {
-				if (string_length(db->pkgs[i].files[k]) !=
-						string_length(pkg->files[j].path)) continue;
-				if (!strcmp(db->pkgs[i].files[k], pkg->files[j].path)) {
-					if (!conflict.files) {
-						conflict.files = array_new(char *, 0, ARRAY_NULL_TERMINATED);
-					};
-					array_push(conflict.files, db->pkgs[i].files[k]);
+			cmp = strcmp(pkg->files[j].path, db->pkgs[i].files[k]);
+			if (cmp > 0) {
+				k++;
+				j--;
+				continue;
+			} else if (cmp < 0) {
+				continue;
+			} else {
+				if (!conflict.files) {
+					conflict.files = array_new(char *, 0, ARRAY_NULL_TERMINATED);
 				};
-			};
+				array_push(conflict.files, db->pkgs[i].files[k]);
+				k++;
+			}
 		};
 		if (conflict.files) {
 			conflict.info = &(db->pkgs[i]);
@@ -505,6 +512,10 @@ void pkg_install(const char *pkg_path, const char *root, const char *db_path, in
 			};
 		};
 	};
+};
+
+int string_compare(const void *foo, const void *bar) {
+	return strcmp(*(char **)foo, *(char **)bar);
 };
 
 int string_compare_reverse(const void *foo, const void *bar) {
