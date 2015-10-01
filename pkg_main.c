@@ -58,7 +58,14 @@ int main(int argc, char **argv) {
 			if (real_argc < 2 || real_argc > 3) {
 				throw(pkg_main_incorrect_cmd, 1, "incorrect subcommand", NULL);
 			};
-			pkg_drop(root, db_path, real_argv[1], real_argc == 2 ? NULL : real_argv[2], stderr);
+			char *slash;
+			if ((slash = strchr(real_argv[1], '/'))) {
+				*slash = '\0';
+				pkg_drop(root, db_path, real_argv[1], &slash[1], stderr);
+				
+			} else {
+				pkg_drop(root, db_path, real_argv[1], real_argc == 2 ? NULL : real_argv[2], stderr);
+			}
 		} else {
 			throw(pkg_main_incorrect_cmd, 1, "unknown subcommand", NULL);
 		};
