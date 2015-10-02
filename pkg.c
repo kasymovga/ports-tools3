@@ -486,23 +486,33 @@ void pkg_install(const char *pkg_path, const char *root, const char *db_path, in
 			transaction_fs_transactions_rollback(pkg_install_transactions, warning_stream);
 			throw_proxy();
 		};
-		char *scripts_path = string_new_fmt("%s/usr/lib/pkg-hooks/*", db->root);
-		char **script = kga_glob(scripts_path);
-		for (; *script; script++) {
-			int status;
-			pid_t script_pid = kga_fork();
-			if (!script_pid) {
-				kga_chdir(pkg_path);
-				if (unsetenv("ROOT")) throw_errno();
-				const char *script_copy = strdup(*script);
-				if (!script_copy) throw_errno();
-				if (db->root && *db->root && setenv("ROOT", db->root, 1)) throw_errno();
-				while (scope_current()) scope_end();
-				execl(script_copy, script_copy, NULL);
-				exit(EXIT_FAILURE);
+		try {
+			char *scripts_path = string_new_fmt("%s/usr/lib/pkg-hooks/*", db->root);
+			char **script = kga_glob(scripts_path);
+			for (; *script; script++) {
+				int status;
+				pid_t script_pid = kga_fork();
+				if (!script_pid) {
+					kga_chdir(pkg_path);
+					if (unsetenv("ROOT")) throw_errno();
+					const char *script_copy = strdup(*script);
+					if (!script_copy) throw_errno();
+					if (db->root && *db->root && setenv("ROOT", db->root, 1)) throw_errno();
+					while (scope_current()) scope_end();
+					execl(script_copy, script_copy, NULL);
+					exit(EXIT_FAILURE);
+				};
+				waitpid(script_pid, &status, 0);
 			};
-			waitpid(script_pid, &status, 0);
 		};
+		catch {
+			if (exception_type_is(exception_type_glob_aborted) || exception_type_is(exception_type_glob_nomatch)) {
+				if (warning_stream) fprintf(warning_stream, "Post-install scripts not available\n");
+			} else {
+				throw_proxy();
+			};
+		};
+	
 		if (flags & PKG_UPGRADE) {
 			array_foreach(db->pkgs, struct pkg_info *, each_pkg_info) {
 				if (!strcmp(each_pkg_info->name, pkg->name) && strcmp(each_pkg_info->version, pkg->version)) {
