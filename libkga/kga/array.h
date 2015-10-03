@@ -32,6 +32,7 @@ void array_swap(void *array, size_t foo, size_t bar);
 
 //Full of hacks, lol
 #define array_foreach(array, iter_type, iter) for (iter_type _array_end##__LINE__ = &(array[array_length(array)]); _array_end##__LINE__; _array_end##__LINE__ = NULL) for (iter_type iter = array; iter < _array_end##__LINE__; iter++)
+#define array_foreach_reverse(array, iter_type, iter) for (iter_type _array_end##__LINE__ = &(array[array_length(array) - 1]); _array_end##__LINE__; _array_end##__LINE__ = NULL) for (iter_type iter = _array_end##__LINE__; iter >= array; iter--)
 
 #define array_add(x,y,z) (x=array_add_real(x,y,z))
 #define array_push(x,y) (x=array_push_real(x,&(y)))
