@@ -528,10 +528,6 @@ int string_compare(const void *foo, const void *bar) {
 	return strcmp(*(char **)foo, *(char **)bar);
 };
 
-int string_compare_reverse(const void *foo, const void *bar) {
-	return -1 * strcmp(*(char **)foo, *(char **)bar);
-};
-
 struct pkg_info *pkg_db_find_info(struct pkg_db *db, const char *name, const char *version) {
 	return NULL;
 };
@@ -540,8 +536,7 @@ void pkg_db_drop(struct pkg_db *db, struct pkg_info *pkg_info, FILE *warning_str
 	scope {
 		char *pkg_info_path = string_new_fmt("%s/%s/%s", db->path, pkg_info->name, pkg_info->version);
 		char *file_path = string_new();;
-		array_sort(pkg_info->files, string_compare_reverse);
-		array_foreach(pkg_info->files, char **, each_file) {
+		array_foreach_reverse(pkg_info->files, char **, each_file) {
 			array_foreach(db->pkgs, struct pkg_info *, each_pkg_info) {
 				if (each_pkg_info == pkg_info) continue;
 				array_foreach(each_pkg_info->files, char **, each_pkg_info_file) {
