@@ -1,0 +1,3 @@
+[submodule "libkga"]
+	path = libkga
+	url = git://github.com/kasymovga/libkga
