@@ -66,7 +66,7 @@ get_sync_package() {
 		PKGFILENAME_URL="`echo "$PKGFILENAME"|sed 's/#/%23/'`"
 		for SUF in $ARC_SUFFIXES
 		do
-			wget "$SYNC_TO/$PACKAGE_BASE_DIR/$PKGFILENAME_URL$SUF" && unpack "`pwd`/$PKGFILENAME$SUF" "$FAKEROOTDIR" && return 0
+			download "$SYNC_TO/$PACKAGE_BASE_DIR/$PKGFILENAME_URL$SUF" && unpack "`pwd`/$PKGFILENAME$SUF" "$FAKEROOTDIR" && return 0
 		done
 		;;
 	*)
@@ -82,7 +82,7 @@ get_sync_sources() {
 	http://*|ftp://)
 		for SUF in $ARC_SUFFIXES
 		do
-			wget "$SYNC_TO/$SOURCES_BASE_DIR/$SOURCES_NAME-$SOURCES_VERSION$SUF" && unpack "`pwd`/$SOURCES_NAME-$SOURCES_VERSION$SUF" . && return 0
+			download "$SYNC_TO/$SOURCES_BASE_DIR/$SOURCES_NAME-$SOURCES_VERSION$SUF" && unpack "`pwd`/$SOURCES_NAME-$SOURCES_VERSION$SUF" . && return 0
 		done
 		;;
 	*)
@@ -181,6 +181,30 @@ save_sources_to_cache() {
 	return $?
 }
 
+download() {
+	if test -x /usr/bin/wget
+	then
+		if test -n "$2"
+		then
+			wget --no-check-certificate "$1" -O "$2" && return 0
+		else
+			wget --no-check-certificate "$1" && return 0
+		fi
+		return 1
+	fi
+	if test -x /usr/bin/wget
+	then
+		if test -n "$2"
+		then
+			curl -k -o "$2" "$1" && return 0
+		else
+			curl -k -O "$1" && return 0
+		fi
+		return 1
+	fi
+	return 1
+}
+
 _get_package() {
 	if get_cache_package
 	then
@@ -203,15 +227,25 @@ _get_source() {
 		then
 			echo -n
 		else
-			if port_get_sources
+			if test -n "$SOURCES_URL" 
 			then
-				cd "$BUILDDIR"
-				if test ! -d "$SOURCES_NAME-$SOURCES_VERSION"
+				if download "$SOURCES_URL"
 				then
 					unpack_by_name "$SOURCES_NAME-$SOURCES_VERSION" . || return 1
+				else
+					return 1
 				fi
 			else
-				return 1
+				if port_get_sources
+				then
+					cd "$BUILDDIR"
+					if test ! -d "$SOURCES_NAME-$SOURCES_VERSION"
+					then
+						unpack_by_name "$SOURCES_NAME-$SOURCES_VERSION" . || return 1
+					fi
+				else
+					return 1
+				fi
 			fi
 		fi
 		save_sources_to_cache
